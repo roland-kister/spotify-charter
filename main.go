@@ -3,21 +3,43 @@ package main
 import (
 	"database/sql"
 	"encoding/csv"
+	"fmt"
 	"io"
 	"log"
 	"os"
 	"spotify-charter/db"
 	"spotify-charter/model"
+	"spotify-charter/spotify"
 
 	_ "github.com/mattn/go-sqlite3"
 )
 
 func main() {
-	sqlDb := initDB("test.db")
+	apiClientId := os.Getenv("SPOTIFY_CHARTER_API_CLIENT_ID")
+	apiClientSecret := os.Getenv("SPOTIFY_CHARTER_API_CLIENT_SECRET")
+	dbFile := os.Getenv("SPOTIFY_CHARTER_DB_FILE")
+
+	sqlDb := initDB(dbFile)
 
 	defer sqlDb.Close()
 
 	initCountries("countries.csv", sqlDb)
+
+	apiClient := spotify.NewApiClient(apiClientId, apiClientSecret)
+
+	if err := apiClient.Authorize(); err != nil {
+		panic(err)
+	}
+
+	tracks, err := apiClient.GetPlaylist("37i9dQZEVXbKIVTPX9a2Sb")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	for _, track := range *tracks {
+		fmt.Println(track.Name)
+	}
 }
 
 func initDB(dbPath string) *sql.DB {

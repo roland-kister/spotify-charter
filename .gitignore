@@ -22,3 +22,6 @@ go.work
 
 # Local DB files
 *.db
+
+# Environment file
+.env
