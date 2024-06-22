@@ -15,6 +15,8 @@ import (
 func main() {
 	sqlDb := initDB("test.db")
 
+	defer sqlDb.Close()
+
 	initCountries("countries.csv", sqlDb)
 }
 

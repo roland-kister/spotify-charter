@@ -8,6 +8,11 @@ type Country struct {
 	TopPlaylistID string
 }
 
+type Artist struct {
+	SpotifyID string
+	Name      string
+}
+
 type Album struct {
 	SpotifyID string
 	Name      string
@@ -16,14 +21,15 @@ type Album struct {
 
 type Image struct {
 	URL    string
-	Height int
-	Width  int
+	Height uint
+	Width  uint
 }
 
 type Track struct {
 	SpotifyID string
 	Name      string
 	Album     Album
+	Artists   []Artist
 }
 
 type TopTracks struct {
