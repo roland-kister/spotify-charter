@@ -19,53 +19,53 @@ type Writer struct {
 }
 
 func NewWriter(db *sql.DB) *Writer {
-	client := Writer{
+	writer := Writer{
 		db: db,
 	}
 
-	return &client
+	return &writer
 }
 
-func (client *Writer) BeginTx() {
-	if client.tx != nil {
+func (writer *Writer) BeginTx() {
+	if writer.tx != nil {
 		panic("Trying to create a new transcation, without commiting the existing one")
 	}
 
-	if client.upsertCountryStmt != nil {
+	if writer.upsertCountryStmt != nil {
 		panic("Trying to create a new transaction, without clearing the upsert country statement")
 	}
 
 	var err error
 
-	client.tx, err = client.db.BeginTx(context.Background(), nil)
+	writer.tx, err = writer.db.BeginTx(context.Background(), nil)
 	if err != nil {
 		panic(err)
 	}
 
-	if client.upsertCountryStmt, err = client.tx.Prepare(upsertCountrySql); err != nil {
+	if writer.upsertCountryStmt, err = writer.tx.Prepare(upsertCountrySql); err != nil {
 		panic(err)
 	}
 }
 
-func (client *Writer) CommitTx() {
-	if client.tx == nil {
+func (writer *Writer) CommitTx() {
+	if writer.tx == nil {
 		panic("No transcation to commit")
 	}
 
-	client.upsertCountryStmt.Close()
-	client.upsertCountryStmt = nil
+	writer.upsertCountryStmt.Close()
+	writer.upsertCountryStmt = nil
 
-	if err := client.tx.Commit(); err != nil {
+	if err := writer.tx.Commit(); err != nil {
 		panic(err)
 	}
 
-	client.tx = nil
+	writer.tx = nil
 }
 
-func (client *Writer) UpsertCountry(country *model.Country) {
+func (writer *Writer) UpsertCountry(country *model.Country) {
 	var err error
 
-	_, err = client.upsertCountryStmt.Exec(
+	_, err = writer.upsertCountryStmt.Exec(
 		sql.Named("country_code", country.CountryCode),
 		sql.Named("name", country.Name),
 		sql.Named("top_playlist_id", newNullString(country.TopPlaylistID)))

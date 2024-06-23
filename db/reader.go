@@ -10,28 +10,28 @@ type Reader struct {
 }
 
 func NewReader(db *sql.DB) *Reader {
-	client := Reader{
+	reader := Reader{
 		db: db,
 	}
 
 	var err error
 
-	if client.existsCountryStmt, err = client.db.Prepare(existsCountrySql); err != nil {
+	if reader.existsCountryStmt, err = reader.db.Prepare(existsCountrySql); err != nil {
 		panic(err)
 	}
 
-	return &client
+	return &reader
 }
 
-func (client *Reader) Close() {
-	client.db = nil
+func (reader *Reader) Close() {
+	reader.db = nil
 
-	client.existsCountryStmt.Close()
-	client.existsCountryStmt = nil
+	reader.existsCountryStmt.Close()
+	reader.existsCountryStmt = nil
 }
 
-func (client Reader) ExistsCountry(countryCode string) bool {
-	err := client.existsCountryStmt.QueryRow(sql.Named("country_code", countryCode)).Scan(new(int))
+func (reader Reader) ExistsCountry(countryCode string) bool {
+	err := reader.existsCountryStmt.QueryRow(sql.Named("country_code", countryCode)).Scan(new(int))
 
 	if err == nil {
 		return true
