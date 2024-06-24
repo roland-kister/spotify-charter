@@ -3,7 +3,6 @@ package main
 import (
 	"database/sql"
 	"encoding/csv"
-	"fmt"
 	"io"
 	"log"
 	"os"
@@ -26,20 +25,26 @@ func main() {
 	initCountries("countries.csv", sqlDb)
 
 	apiClient := spotify.NewApiClient(apiClientId, apiClientSecret)
-
 	if err := apiClient.Authorize(); err != nil {
-		panic(err)
+		log.Panicln(err)
 	}
 
-	tracks, err := apiClient.GetPlaylist("37i9dQZEVXbKIVTPX9a2Sb")
+	reader := db.NewReader(sqlDb)
+	countriesWithPlaylist := reader.GetCountriesWithPlaylist()
+
+	tracks, err := apiClient.GetPlaylist((*countriesWithPlaylist)[0].TopPlaylistID)
 	if err != nil {
-		fmt.Println(err)
-		return
+		log.Panicln(err)
 	}
+
+	writer := db.NewWriter(sqlDb)
+	writer.BeginTx()
 
 	for _, track := range *tracks {
-		fmt.Println(track.Name)
+		writer.UpsertTrack(&track)
 	}
+
+	writer.CommitTx()
 }
 
 func initDB(dbPath string) *sql.DB {
@@ -47,7 +52,7 @@ func initDB(dbPath string) *sql.DB {
 
 	sqlDb, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
-		panic(err)
+		log.Panicln(err)
 	}
 
 	log.Println("Initializing DB tables")
@@ -64,7 +69,7 @@ func initCountries(csvPath string, sqlDB *sql.DB) {
 
 	countries, err := os.Open(csvPath)
 	if err != nil {
-		panic(err)
+		log.Panicln(err)
 	}
 
 	defer countries.Close()
@@ -72,7 +77,7 @@ func initCountries(csvPath string, sqlDB *sql.DB) {
 	csvReader := csv.NewReader(countries)
 
 	if _, err = csvReader.Read(); err != nil {
-		panic(err)
+		log.Panicln(err)
 	}
 
 	record, err := csvReader.Read()
@@ -80,7 +85,6 @@ func initCountries(csvPath string, sqlDB *sql.DB) {
 	writer := db.NewWriter(sqlDB)
 
 	writer.BeginTx()
-	defer writer.CommitTx()
 
 	for len(record) != 0 && err == nil {
 		country := model.Country{
@@ -97,8 +101,10 @@ func initCountries(csvPath string, sqlDB *sql.DB) {
 	}
 
 	if err != io.EOF {
-		panic(err)
+		log.Panicln(err)
 	}
+
+	writer.CommitTx()
 
 	log.Println("Successfully finished writing countries from the countries file to the DB")
 }

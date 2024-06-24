@@ -1,6 +1,9 @@
 package db
 
-import "database/sql"
+import (
+	"context"
+	"database/sql"
+)
 
 const createCountriesQuery string = `
 	CREATE TABLE IF NOT EXISTS countries (
@@ -24,22 +27,13 @@ const createAlbumsQuery string = `
 	);
 `
 
-const createArtistsAlbumsQuery string = `
-	CREATE TABLE IF NOT EXISTS artists_tracks (
-		artist_id TEXT NOT NULL,
-		album_id TEXT NOT NULL,
-
-		FOREIGN KEY(artist_id) REFERENCES artists(spotify_id),
-		FOREIGN KEY(album_id) REFERENCES albums(spotify_id)
-	)
-`
-
 const createImagesQuery string = `
 	CREATE TABLE IF NOT EXISTS images (
-		url TEXT NOT NULL PRIMARY KEY,
-		height INTEGER NOT NULL,
-		width INTEGER NOT NULL,
 		album_id TEXT NOT NULL,
+		width INTEGER NOT NULL,
+		url TEXT NOT NULL,
+
+		PRIMARY KEY(album_id, width),
 
 		FOREIGN KEY(album_id) REFERENCES albums(spotify_id)
 	);
@@ -52,6 +46,18 @@ const createTracksQuery string = `
 
 		FOREIGN KEY(album_id) REFERENCES albums(spotify_id)
 	);
+`
+
+const createArtistsTracksQuery string = `
+	CREATE TABLE IF NOT EXISTS artists_tracks (
+		artist_id TEXT NOT NULL,
+		track_id TEXT NOT NULL,
+
+		UNIQUE(artist_id, track_id),
+
+		FOREIGN KEY(artist_id) REFERENCES artists(spotify_id),
+		FOREIGN KEY(track_id) REFERENCES tracks(spotify_id)
+	)
 `
 
 const createTopTracksQuery string = `
@@ -67,37 +73,38 @@ const createTopTracksQuery string = `
 `
 
 func CreateTables(db *sql.DB) {
-	writer := NewWriter(db)
-
-	writer.BeginTx()
-
-	if _, err := writer.db.Exec(createCountriesQuery); err != nil {
+	tx, err := db.BeginTx(context.Background(), nil)
+	if err != nil {
 		panic(err)
 	}
 
-	if _, err := writer.db.Exec(createArtistsQuery); err != nil {
+	if _, err := tx.Exec(createCountriesQuery); err != nil {
 		panic(err)
 	}
 
-	if _, err := writer.db.Exec(createAlbumsQuery); err != nil {
+	if _, err := tx.Exec(createArtistsQuery); err != nil {
 		panic(err)
 	}
 
-	if _, err := writer.db.Exec(createArtistsAlbumsQuery); err != nil {
+	if _, err := tx.Exec(createAlbumsQuery); err != nil {
 		panic(err)
 	}
 
-	if _, err := writer.db.Exec(createImagesQuery); err != nil {
+	if _, err := tx.Exec(createImagesQuery); err != nil {
 		panic(err)
 	}
 
-	if _, err := writer.db.Exec(createTracksQuery); err != nil {
+	if _, err := tx.Exec(createTracksQuery); err != nil {
 		panic(err)
 	}
 
-	if _, err := writer.db.Exec(createTopTracksQuery); err != nil {
+	if _, err := tx.Exec(createArtistsTracksQuery); err != nil {
 		panic(err)
 	}
 
-	writer.CommitTx()
+	if _, err := tx.Exec(createTopTracksQuery); err != nil {
+		panic(err)
+	}
+
+	tx.Commit()
 }

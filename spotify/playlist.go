@@ -17,9 +17,8 @@ type Artists struct {
 }
 
 type Image struct {
-	URL    string `json:"url"`
-	Height uint   `json:"height"`
-	Width  uint   `json:"width"`
+	URL   string `json:"url"`
+	Width uint   `json:"width"`
 }
 
 type Track struct {
@@ -44,7 +43,7 @@ func (c ApiClient) GetPlaylist(id string) (*[]model.Track, error) {
 	}
 
 	query := req.URL.Query()
-	query.Add("fields", "items(track(album(id,name,images),artists(id,name),id,name))")
+	query.Add("fields", "items(track(album(id,name,images(url,width)),artists(id,name),id,name))")
 	query.Add("limit", "5")
 
 	req.URL.RawQuery = query.Encode()
@@ -83,9 +82,8 @@ func spotifyTrackToTrack(track *Track) model.Track {
 
 	for _, spotifyImage := range track.Album.Images {
 		image := model.Image{
-			URL:    spotifyImage.URL,
-			Height: spotifyImage.Height,
-			Width:  spotifyImage.Width,
+			URL:   spotifyImage.URL,
+			Width: spotifyImage.Width,
 		}
 
 		album.Images = append(album.Images, image)

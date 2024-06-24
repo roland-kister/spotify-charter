@@ -1,12 +1,12 @@
 package db
 
-import "database/sql"
-
-const existsCountrySql = "SELECT 1 FROM countries WHERE country_code = :country_code;"
+import (
+	"database/sql"
+	"spotify-charter/model"
+)
 
 type Reader struct {
-	db                *sql.DB
-	existsCountryStmt *sql.Stmt
+	db *sql.DB
 }
 
 func NewReader(db *sql.DB) *Reader {
@@ -14,32 +14,35 @@ func NewReader(db *sql.DB) *Reader {
 		db: db,
 	}
 
-	var err error
-
-	if reader.existsCountryStmt, err = reader.db.Prepare(existsCountrySql); err != nil {
-		panic(err)
-	}
-
 	return &reader
 }
 
 func (reader *Reader) Close() {
 	reader.db = nil
-
-	reader.existsCountryStmt.Close()
-	reader.existsCountryStmt = nil
 }
 
-func (reader Reader) ExistsCountry(countryCode string) bool {
-	err := reader.existsCountryStmt.QueryRow(sql.Named("country_code", countryCode)).Scan(new(int))
-
-	if err == nil {
-		return true
+func (reader Reader) GetCountriesWithPlaylist() *[]model.Country {
+	rows, err := reader.db.Query("SELECT country_code, name, top_playlist_id FROM countries WHERE top_playlist_id IS NOT NULL;")
+	if err != nil {
+		panic(err)
 	}
 
-	if err == sql.ErrNoRows {
-		return false
+	defer rows.Close()
+
+	countries := make([]model.Country, 0)
+
+	for rows.Next() {
+		country := model.Country{}
+		if err := rows.Scan(&country.CountryCode, &country.Name, &country.TopPlaylistID); err != nil {
+			panic(err)
+		}
+
+		countries = append(countries, country)
 	}
 
-	panic(err)
+	if err := rows.Err(); err != nil {
+		panic(err)
+	}
+
+	return &countries
 }

@@ -20,9 +20,8 @@ type Album struct {
 }
 
 type Image struct {
-	URL    string
-	Height uint
-	Width  uint
+	URL   string
+	Width uint
 }
 
 type Track struct {
