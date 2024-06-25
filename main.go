@@ -44,6 +44,15 @@ func main() {
 		writer.UpsertTrack(&track)
 	}
 
+	tracks, err = apiClient.GetPlaylist((*countriesWithPlaylist)[2].TopPlaylistID)
+	if err != nil {
+		log.Panicln(err)
+	}
+
+	for _, track := range *tracks {
+		writer.UpsertTrack(&track)
+	}
+
 	writer.CommitTx()
 }
 

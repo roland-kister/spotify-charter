@@ -53,7 +53,7 @@ const createArtistsTracksQuery string = `
 		artist_id TEXT NOT NULL,
 		track_id TEXT NOT NULL,
 
-		UNIQUE(artist_id, track_id),
+		PRIMARY KEY(artist_id, track_id),
 
 		FOREIGN KEY(artist_id) REFERENCES artists(spotify_id),
 		FOREIGN KEY(track_id) REFERENCES tracks(spotify_id)

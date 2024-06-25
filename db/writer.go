@@ -36,14 +36,19 @@ const upsertTrackSql = `INSERT INTO tracks (spotify_id, name, album_id)
 							SET name = :name, album_id = :album_id
 							WHERE spotify_id = :spotify_id;`
 
+const upsertArtistTrackSql = `INSERT INTO artists_tracks (artist_id, track_id)
+							VALUES(:artist_id, :track_id)
+							ON CONFLICT (artist_id, track_id) DO NOTHING;`
+
 type Writer struct {
-	db                *sql.DB
-	tx                *sql.Tx
-	upsertCountryStmt *sql.Stmt
-	upsertArtistStmt  *sql.Stmt
-	upsertAlbumStmt   *sql.Stmt
-	upsertImageStmt   *sql.Stmt
-	upsertTrackStmt   *sql.Stmt
+	db                    *sql.DB
+	tx                    *sql.Tx
+	upsertCountryStmt     *sql.Stmt
+	upsertArtistStmt      *sql.Stmt
+	upsertAlbumStmt       *sql.Stmt
+	upsertImageStmt       *sql.Stmt
+	upsertTrackStmt       *sql.Stmt
+	upsertArtistTrackStmt *sql.Stmt
 }
 
 func NewWriter(db *sql.DB) *Writer {
@@ -79,6 +84,10 @@ func (writer *Writer) BeginTx() {
 		panic("Trying to create a new transaction, without clearing the upsert track statement")
 	}
 
+	if writer.upsertArtistTrackStmt != nil {
+		panic("Trying to create a new transaction, without clearing the upsert artist track statement")
+	}
+
 	var err error
 
 	writer.tx, err = writer.db.BeginTx(context.Background(), nil)
@@ -105,6 +114,10 @@ func (writer *Writer) BeginTx() {
 	if writer.upsertTrackStmt, err = writer.tx.Prepare(upsertTrackSql); err != nil {
 		panic(err)
 	}
+
+	if writer.upsertArtistTrackStmt, err = writer.tx.Prepare(upsertArtistTrackSql); err != nil {
+		panic(err)
+	}
 }
 
 func (writer *Writer) CommitTx() {
@@ -126,6 +139,9 @@ func (writer *Writer) CommitTx() {
 
 	writer.upsertTrackStmt.Close()
 	writer.upsertTrackStmt = nil
+
+	writer.upsertArtistTrackStmt.Close()
+	writer.upsertArtistTrackStmt = nil
 
 	if err := writer.tx.Commit(); err != nil {
 		panic(err)
@@ -164,6 +180,10 @@ func (writer *Writer) UpsertTrack(track *model.Track) {
 	if err != nil {
 		panic(err)
 	}
+
+	for _, artist := range track.Artists {
+		writer.upsertArtistTrack(artist.SpotifyID, track.SpotifyID)
+	}
 }
 
 func (writer *Writer) upsertArtist(artist *model.Artist) {
@@ -191,6 +211,16 @@ func (writer *Writer) upsertImage(image *model.Image, albumID string) {
 		sql.Named("album_id", albumID),
 		sql.Named("width", image.Width),
 		sql.Named("url", image.URL))
+
+	if err != nil {
+		panic(err)
+	}
+}
+
+func (writer *Writer) upsertArtistTrack(artistID string, trackID string) {
+	_, err := writer.upsertArtistTrackStmt.Exec(
+		sql.Named("artist_id", artistID),
+		sql.Named("track_id", trackID))
 
 	if err != nil {
 		panic(err)
