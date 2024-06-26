@@ -40,6 +40,12 @@ const upsertArtistTrackSql = `INSERT INTO artists_tracks (artist_id, track_id)
 							VALUES(:artist_id, :track_id)
 							ON CONFLICT (artist_id, track_id) DO NOTHING;`
 
+const upsertTopTrackSql = `INSERT INTO top_tracks (country_code, track_id, date, position)
+							VALUES(:country_code, :track_id, :date, :position)
+							ON CONFLICT (country_code, date, position) DO UPDATE
+							SET track_id = :track_id
+							WHERE country_code = :country_code AND date = :date AND position = :position;`
+
 type Writer struct {
 	db                    *sql.DB
 	tx                    *sql.Tx
@@ -49,6 +55,7 @@ type Writer struct {
 	upsertImageStmt       *sql.Stmt
 	upsertTrackStmt       *sql.Stmt
 	upsertArtistTrackStmt *sql.Stmt
+	upsertTopTrackStmt    *sql.Stmt
 }
 
 func NewWriter(db *sql.DB) *Writer {
@@ -88,6 +95,10 @@ func (writer *Writer) BeginTx() {
 		panic("Trying to create a new transaction, without clearing the upsert artist track statement")
 	}
 
+	if writer.upsertTopTrackStmt != nil {
+		panic("Trying to create a new transaction, without clearing the upsert top track statement")
+	}
+
 	var err error
 
 	writer.tx, err = writer.db.BeginTx(context.Background(), nil)
@@ -118,6 +129,10 @@ func (writer *Writer) BeginTx() {
 	if writer.upsertArtistTrackStmt, err = writer.tx.Prepare(upsertArtistTrackSql); err != nil {
 		panic(err)
 	}
+
+	if writer.upsertTopTrackStmt, err = writer.tx.Prepare(upsertTopTrackSql); err != nil {
+		panic(err)
+	}
 }
 
 func (writer *Writer) CommitTx() {
@@ -142,6 +157,9 @@ func (writer *Writer) CommitTx() {
 
 	writer.upsertArtistTrackStmt.Close()
 	writer.upsertArtistTrackStmt = nil
+
+	writer.upsertTopTrackStmt.Close()
+	writer.upsertTopTrackStmt = nil
 
 	if err := writer.tx.Commit(); err != nil {
 		panic(err)
@@ -221,6 +239,18 @@ func (writer *Writer) upsertArtistTrack(artistID string, trackID string) {
 	_, err := writer.upsertArtistTrackStmt.Exec(
 		sql.Named("artist_id", artistID),
 		sql.Named("track_id", trackID))
+
+	if err != nil {
+		panic(err)
+	}
+}
+
+func (writer *Writer) UpsertTopTrack(countryCode string, trackID string, date int64, position int) {
+	_, err := writer.upsertTopTrackStmt.Exec(
+		sql.Named("country_code", countryCode),
+		sql.Named("track_id", trackID),
+		sql.Named("date", date),
+		sql.Named("position", position))
 
 	if err != nil {
 		panic(err)

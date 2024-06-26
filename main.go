@@ -9,6 +9,7 @@ import (
 	"spotify-charter/db"
 	"spotify-charter/model"
 	"spotify-charter/spotify"
+	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -29,6 +30,10 @@ func main() {
 		log.Panicln(err)
 	}
 
+	timeNow := time.Now().UTC()
+
+	dateNow := time.Date(timeNow.Year(), timeNow.Month(), timeNow.Day(), 0, 0, 0, 0, timeNow.Location()).Unix()
+
 	reader := db.NewReader(sqlDb)
 	countriesWithPlaylist := reader.GetCountriesWithPlaylist()
 
@@ -40,17 +45,9 @@ func main() {
 	writer := db.NewWriter(sqlDb)
 	writer.BeginTx()
 
-	for _, track := range *tracks {
+	for index, track := range *tracks {
 		writer.UpsertTrack(&track)
-	}
-
-	tracks, err = apiClient.GetPlaylist((*countriesWithPlaylist)[2].TopPlaylistID)
-	if err != nil {
-		log.Panicln(err)
-	}
-
-	for _, track := range *tracks {
-		writer.UpsertTrack(&track)
+		writer.UpsertTopTrack((*countriesWithPlaylist)[0].CountryCode, track.SpotifyID, dateNow, index)
 	}
 
 	writer.CommitTx()

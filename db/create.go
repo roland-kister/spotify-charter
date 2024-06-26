@@ -67,6 +67,8 @@ const createTopTracksQuery string = `
 		date NUMERIC NOT NULL,
 		position NUMERIC NOT NULL,
 
+		PRIMARY KEY(country_code, date, position),
+
 		FOREIGN KEY(country_code) REFERENCES countries(country_code),
 		FOREIGN KEY(track_id) REFERENCES tracks(spotify_id)
 	);
