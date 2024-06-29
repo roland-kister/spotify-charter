@@ -21,7 +21,7 @@ func (reader *Reader) Close() {
 	reader.db = nil
 }
 
-func (reader Reader) GetCountriesWithPlaylist() *[]model.Country {
+func (reader Reader) GetCountriesWithPlaylist() []*model.Country {
 	rows, err := reader.db.Query("SELECT country_code, name, top_playlist_id FROM countries WHERE top_playlist_id IS NOT NULL;")
 	if err != nil {
 		panic(err)
@@ -29,7 +29,7 @@ func (reader Reader) GetCountriesWithPlaylist() *[]model.Country {
 
 	defer rows.Close()
 
-	countries := make([]model.Country, 0)
+	countries := make([]*model.Country, 0)
 
 	for rows.Next() {
 		country := model.Country{}
@@ -37,12 +37,12 @@ func (reader Reader) GetCountriesWithPlaylist() *[]model.Country {
 			panic(err)
 		}
 
-		countries = append(countries, country)
+		countries = append(countries, &country)
 	}
 
 	if err := rows.Err(); err != nil {
 		panic(err)
 	}
 
-	return &countries
+	return countries
 }

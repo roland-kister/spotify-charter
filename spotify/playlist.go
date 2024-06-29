@@ -36,7 +36,7 @@ type GetPlaylistResp struct {
 	Items []Item `json:"items"`
 }
 
-func (c ApiClient) GetPlaylist(id string) (*[]model.Track, error) {
+func (c ApiClient) GetPlaylist(id string) ([]*model.Track, error) {
 	req, err := http.NewRequest("GET", baseURL+"/v1/playlists/"+id+"/tracks", nil)
 	if err != nil {
 		return nil, err
@@ -64,16 +64,16 @@ func (c ApiClient) GetPlaylist(id string) (*[]model.Track, error) {
 		return nil, err
 	}
 
-	tracks := make([]model.Track, 0)
+	tracks := make([]*model.Track, 0)
 
 	for _, spotifyTrack := range resp.Items {
 		tracks = append(tracks, spotifyTrackToTrack(&spotifyTrack.Track))
 	}
 
-	return &tracks, nil
+	return tracks, nil
 }
 
-func spotifyTrackToTrack(track *Track) model.Track {
+func spotifyTrackToTrack(track *Track) *model.Track {
 	album := model.Album{
 		SpotifyID: track.Album.ID,
 		Name:      track.Name,
@@ -100,7 +100,7 @@ func spotifyTrackToTrack(track *Track) model.Track {
 		artists = append(artists, artist)
 	}
 
-	return model.Track{
+	return &model.Track{
 		SpotifyID: track.ID,
 		Name:      track.Name,
 		Album:     album,

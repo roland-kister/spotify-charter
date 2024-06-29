@@ -3,12 +3,14 @@ package main
 import (
 	"database/sql"
 	"encoding/csv"
+	"fmt"
 	"io"
 	"log"
 	"os"
 	"spotify-charter/db"
 	"spotify-charter/model"
 	"spotify-charter/spotify"
+	"sync"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -30,27 +32,24 @@ func main() {
 		log.Panicln(err)
 	}
 
-	timeNow := time.Now().UTC()
-
-	dateNow := time.Date(timeNow.Year(), timeNow.Month(), timeNow.Day(), 0, 0, 0, 0, timeNow.Location()).Unix()
+	dateNow := model.TimeToDatestamp(time.Now())
 
 	reader := db.NewReader(sqlDb)
 	countriesWithPlaylist := reader.GetCountriesWithPlaylist()
 
-	tracks, err := apiClient.GetPlaylist((*countriesWithPlaylist)[0].TopPlaylistID)
-	if err != nil {
-		log.Panicln(err)
-	}
+	wg := new(sync.WaitGroup)
 
 	writer := db.NewWriter(sqlDb)
-	writer.BeginTx()
 
-	for index, track := range *tracks {
-		writer.UpsertTrack(&track)
-		writer.UpsertTopTrack((*countriesWithPlaylist)[0].CountryCode, track.SpotifyID, dateNow, index)
+	for _, country := range countriesWithPlaylist {
+		wg.Add(1)
+
+		go getCountry(wg, apiClient, country, writer, dateNow, model.DailyTopTrack)
 	}
 
-	writer.CommitTx()
+	wg.Wait()
+
+	writer.Commit()
 }
 
 func initDB(dbPath string) *sql.DB {
@@ -90,8 +89,6 @@ func initCountries(csvPath string, sqlDB *sql.DB) {
 
 	writer := db.NewWriter(sqlDB)
 
-	writer.BeginTx()
-
 	for len(record) != 0 && err == nil {
 		country := model.Country{
 			CountryCode:   record[0],
@@ -101,7 +98,7 @@ func initCountries(csvPath string, sqlDB *sql.DB) {
 
 		log.Printf("Upserting country '%s' ('%s') to the DB\n", country.Name, country.CountryCode)
 
-		writer.UpsertCountry(&country)
+		writer.SaveCountry(&country)
 
 		record, err = csvReader.Read()
 	}
@@ -110,7 +107,31 @@ func initCountries(csvPath string, sqlDB *sql.DB) {
 		log.Panicln(err)
 	}
 
-	writer.CommitTx()
-
 	log.Println("Successfully finished writing countries from the countries file to the DB")
+
+	writer.Commit()
+}
+
+func getCountry(wg *sync.WaitGroup, apiClient *spotify.ApiClient, country *model.Country, writer *db.Writer, date int64, chartType model.ChartType) {
+	tracks, err := apiClient.GetPlaylist(country.TopPlaylistID)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	for index, track := range tracks {
+		chartTrack := &model.ChartTrack{
+			Country:   country,
+			Track:     track,
+			ChartType: chartType,
+			Date:      date,
+			Position:  index,
+		}
+
+		writer.SaveChartTrack(chartTrack)
+
+		log.Printf("[%s] %d: %s\n", country.CountryCode, index, track.Name)
+	}
+
+	wg.Done()
 }

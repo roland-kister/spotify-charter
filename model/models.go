@@ -31,9 +31,22 @@ type Track struct {
 	Artists   []Artist
 }
 
-type TopTracks struct {
-	Country  *Country
-	Track    *Track
-	Date     time.Time
-	Position int
+type ChartType string
+
+const (
+	DailyTopTrack ChartType = "DAILY_TOP_TRACK"
+)
+
+type ChartTrack struct {
+	Country   *Country
+	Track     *Track
+	ChartType ChartType
+	Date      int64
+	Position  int
+}
+
+func TimeToDatestamp(t time.Time) int64 {
+	t = t.UTC()
+
+	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location()).Unix()
 }
