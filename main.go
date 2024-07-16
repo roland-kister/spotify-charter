@@ -49,6 +49,19 @@ func main() {
 
 	wg.Wait()
 
+	chartTracks := reader.GetChartTracks(dateNow)
+	for _, chartTrack := range chartTracks {
+		if chartTrack.Country.CountryCode != "SK" {
+			continue
+		}
+
+		fmt.Println(chartTrack.Position, chartTrack.Track.Name)
+
+		for _, artist := range chartTrack.Track.Artists {
+			fmt.Println("\t", artist.Name)
+		}
+	}
+
 	writer.Commit()
 }
 

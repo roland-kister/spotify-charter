@@ -95,12 +95,12 @@ func NewWriter(db *sql.DB) *Writer {
 		}
 	}
 
-	go writer.writingRoute()
+	go writer.writingRoutine()
 
 	return writer
 }
 
-func (writer *Writer) writingRoute() {
+func (writer *Writer) writingRoutine() {
 	for {
 		select {
 		case country := <-writer.countryToSave:
@@ -226,7 +226,7 @@ func (writer *Writer) upsertImage(image *model.Image, albumID string) {
 }
 
 func (writer *Writer) upsertArtistTrack(artistID string, trackID string) {
-	_, err := writer.stmts[upsArtist].Exec(
+	_, err := writer.stmts[upsArtistTrack].Exec(
 		sql.Named("artist_id", artistID),
 		sql.Named("track_id", trackID))
 
