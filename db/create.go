@@ -18,7 +18,7 @@ const (
 var createSqls = map[int]string{
 	crCountries: `
 		CREATE TABLE IF NOT EXISTS countries (
-			country_code TEXT NOT NULL PRIMARY KEY,
+			code TEXT NOT NULL PRIMARY KEY,
 			name TEXT NOT NULL,
 			top_playlist_id TEXT
 		);`,
@@ -76,7 +76,7 @@ var createSqls = map[int]string{
 
 			PRIMARY KEY(country_code, chart_type, date, position),
 
-			FOREIGN KEY(country_code) REFERENCES countries(country_code),
+			FOREIGN KEY(country_code) REFERENCES countries(code),
 			FOREIGN KEY(track_id) REFERENCES tracks(spotify_id)
 		);`,
 }

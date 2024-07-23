@@ -18,11 +18,11 @@ const (
 
 var writerSqls = map[int]string{
 	upsCountry: `
-		INSERT INTO countries (country_code, name, top_playlist_id)
-			VALUES (:country_code, :name, :top_playlist_id)
-		ON CONFLICT (country_code) DO UPDATE
+		INSERT INTO countries (code, name, top_playlist_id)
+			VALUES (:code, :name, :top_playlist_id)
+		ON CONFLICT (code) DO UPDATE
 			SET name = :name, top_playlist_id = :top_playlist_id
-		WHERE country_code = :country_code;`,
+		WHERE code = :code;`,
 
 	upsArtist: `
 		INSERT INTO artists (spotify_id, name)
@@ -145,7 +145,7 @@ func (writer *Writer) SaveChartTrack(chartTrack *model.ChartTrack) {
 
 func (writer *Writer) upsertCountry(country *model.Country) {
 	_, err := writer.stmts[upsCountry].Exec(
-		sql.Named("country_code", country.CountryCode),
+		sql.Named("code", country.Code),
 		sql.Named("name", country.Name),
 		sql.Named("top_playlist_id", newNullString(country.TopPlaylistID)))
 
@@ -158,7 +158,7 @@ func (writer *Writer) upsertChartTrack(chartTrack *model.ChartTrack) {
 	writer.upsertTrack(chartTrack.Track)
 
 	_, err := writer.stmts[upsChartTrack].Exec(
-		sql.Named("country_code", chartTrack.Country.CountryCode),
+		sql.Named("country_code", chartTrack.Country.Code),
 		sql.Named("track_id", chartTrack.Track.SpotifyID),
 		sql.Named("chart_type", chartTrack.ChartType),
 		sql.Named("date", chartTrack.Date),

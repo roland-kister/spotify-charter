@@ -9,11 +9,12 @@ const (
 	selPlaylistCountries = iota
 	selChartTracks
 	selArtistsByTrack
+	setImagesByAlbum
 )
 
 var readerSqls = map[int]string{
 	selPlaylistCountries: `
-		SELECT country_code, name, top_playlist_id
+		SELECT code, name, top_playlist_id
 			FROM countries
 		WHERE top_playlist_id IS NOT NULL;`,
 
@@ -29,6 +30,10 @@ var readerSqls = map[int]string{
 			FROM artists_tracks at
 			INNER JOIN artists a ON a.spotify_id = at.artist_id 
 		WHERE at.track_id = :track_id;`,
+
+	setImagesByAlbum: `
+		SELECT i.url, i.width FROM images i
+			WHERE i.album_id = :album_id;`,
 }
 
 type Reader struct {
@@ -76,7 +81,7 @@ func (reader *Reader) GetCountriesWithPlaylist() []*model.Country {
 
 	for rows.Next() {
 		country := model.Country{}
-		if err := rows.Scan(&country.CountryCode, &country.Name, &country.TopPlaylistID); err != nil {
+		if err := rows.Scan(&country.Code, &country.Name, &country.TopPlaylistID); err != nil {
 			panic(err)
 		}
 
@@ -90,7 +95,7 @@ func (reader *Reader) GetCountriesWithPlaylist() []*model.Country {
 	return countries
 }
 
-func (reader *Reader) GetChartTracks(date int64) []*model.ChartTrack {
+func (reader *Reader) GetChartTracksExt(date int64) *model.ChartTracksExt {
 	rows, err := reader.stmts[selChartTracks].Query(
 		sql.Named("chart_type", model.DailyTopTrack),
 		sql.Named("date", date))
@@ -101,34 +106,37 @@ func (reader *Reader) GetChartTracks(date int64) []*model.ChartTrack {
 
 	defer rows.Close()
 
-	chartTracks := make([]*model.ChartTrack, 0)
+	chartTracks := make(model.ChartTracksExt)
 
 	for rows.Next() {
-		chartTrack := model.ChartTrack{
-			Country:   &model.Country{},
-			Track:     &model.Track{},
-			ChartType: model.DailyTopTrack,
-			Date:      date,
-		}
+		track := model.TrackExt{}
 
-		if err := rows.Scan(&chartTrack.Country.CountryCode, &chartTrack.Position, &chartTrack.Track.SpotifyID,
-			&chartTrack.Track.Name, &chartTrack.Track.Album.SpotifyID, &chartTrack.Track.Album.Name); err != nil {
+		var countryCode string
+		var position int
+
+		if err := rows.Scan(&countryCode, &position, &track.ID, &track.Name, &track.Album.ID, &track.Album.Name); err != nil {
 			panic(err)
 		}
 
-		chartTrack.Track.Artists = reader.getArtistsForTrack(chartTrack.Track.SpotifyID)
+		if chartTracks[countryCode] == nil {
+			chartTracks[countryCode] = make([]*model.TrackExt, 5)
+		}
 
-		chartTracks = append(chartTracks, &chartTrack)
+		track.Artists = reader.getArtistsForTrack(track.ID)
+
+		track.Album.Images = reader.getImagesForAlbum(track.Album.ID)
+
+		chartTracks[countryCode][position] = &track
 	}
 
 	if err := rows.Err(); err != nil {
 		panic(err)
 	}
 
-	return chartTracks
+	return &chartTracks
 }
 
-func (reader *Reader) getArtistsForTrack(trackID string) []model.Artist {
+func (reader *Reader) getArtistsForTrack(trackID string) []model.ArtistExt {
 	rows, err := reader.stmts[selArtistsByTrack].Query(sql.Named("track_id", trackID))
 	if err != nil {
 		panic(err)
@@ -136,12 +144,12 @@ func (reader *Reader) getArtistsForTrack(trackID string) []model.Artist {
 
 	defer rows.Close()
 
-	artists := make([]model.Artist, 0)
+	artists := make([]model.ArtistExt, 0)
 
 	for rows.Next() {
-		artist := model.Artist{}
+		artist := model.ArtistExt{}
 
-		if err := rows.Scan(&artist.SpotifyID, &artist.Name); err != nil {
+		if err := rows.Scan(&artist.ID, &artist.Name); err != nil {
 			panic(err)
 		}
 
@@ -149,4 +157,27 @@ func (reader *Reader) getArtistsForTrack(trackID string) []model.Artist {
 	}
 
 	return artists
+}
+
+func (reader *Reader) getImagesForAlbum(albumID string) []model.ImageExt {
+	rows, err := reader.stmts[setImagesByAlbum].Query(sql.Named("album_id", albumID))
+	if err != nil {
+		panic(err)
+	}
+
+	defer rows.Close()
+
+	images := make([]model.ImageExt, 0)
+
+	for rows.Next() {
+		image := model.ImageExt{}
+
+		if err := rows.Scan(&image.URL, &image.Width); err != nil {
+			panic(err)
+		}
+
+		images = append(images, image)
+	}
+
+	return images
 }

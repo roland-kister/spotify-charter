@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net/http"
 	"os"
 	"spotify-charter/db"
 	"spotify-charter/model"
+	"spotify-charter/server"
 	"spotify-charter/spotify"
 	"sync"
 	"time"
@@ -49,20 +51,31 @@ func main() {
 
 	wg.Wait()
 
-	chartTracks := reader.GetChartTracks(dateNow)
-	for _, chartTrack := range chartTracks {
-		if chartTrack.Country.CountryCode != "SK" {
+	writer.Commit()
+
+	chartTracks := reader.GetChartTracksExt(dateNow)
+	for countryCode := range *chartTracks {
+		if countryCode != "SK" {
 			continue
 		}
 
-		fmt.Println(chartTrack.Position, chartTrack.Track.Name)
+		fmt.Println((*chartTracks)[countryCode][0].Name)
 
-		for _, artist := range chartTrack.Track.Artists {
+		for _, artist := range (*chartTracks)[countryCode][0].Artists {
 			fmt.Println("\t", artist.Name)
+		}
+
+		for _, image := range (*chartTracks)[countryCode][0].Album.Images {
+			fmt.Println("\t\t", image.URL)
 		}
 	}
 
-	writer.Commit()
+	server := server.Server{
+		Reader: reader,
+	}
+
+	http.HandleFunc("/test", server.GetPlaylists)
+	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
 func initDB(dbPath string) *sql.DB {
@@ -104,12 +117,12 @@ func initCountries(csvPath string, sqlDB *sql.DB) {
 
 	for len(record) != 0 && err == nil {
 		country := model.Country{
-			CountryCode:   record[0],
+			Code:          record[0],
 			Name:          record[1],
 			TopPlaylistID: record[2],
 		}
 
-		log.Printf("Upserting country '%s' ('%s') to the DB\n", country.Name, country.CountryCode)
+		log.Printf("Upserting country '%s' ('%s') to the DB\n", country.Name, country.Code)
 
 		writer.SaveCountry(&country)
 
@@ -143,7 +156,7 @@ func getCountry(wg *sync.WaitGroup, apiClient *spotify.ApiClient, country *model
 
 		writer.SaveChartTrack(chartTrack)
 
-		log.Printf("[%s] %d: %s\n", country.CountryCode, index, track.Name)
+		log.Printf("[%s] %d: %s\n", country.Code, index, track.Name)
 	}
 
 	wg.Done()
