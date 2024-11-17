@@ -36,7 +36,7 @@ type GetPlaylistResp struct {
 	Items []Item `json:"items"`
 }
 
-func (c ApiClient) GetPlaylist(id string) ([]*model.Track, error) {
+func (c APICLient) GetPlaylist(id string) ([]*model.Track, error) {
 	req, err := http.NewRequest("GET", baseURL+"/v1/playlists/"+id+"/tracks", nil)
 	if err != nil {
 		return nil, err

@@ -8,15 +8,15 @@ import (
 
 const baseURL = "https://api.spotify.com"
 
-type ApiClient struct {
+type APICLient struct {
 	httpClient   *http.Client
 	clientID     string
 	clientSecret string
 	accessToken  string
 }
 
-func NewApiClient(clientID string, clientSecret string) *ApiClient {
-	client := &ApiClient{
+func NewAPIClient(clientID string, clientSecret string) *APICLient {
+	client := &APICLient{
 		clientID:     clientID,
 		clientSecret: clientSecret,
 	}

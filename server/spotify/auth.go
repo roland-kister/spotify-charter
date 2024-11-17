@@ -26,8 +26,8 @@ func (a AuthInterceptor) RoundTrip(r *http.Request) (*http.Response, error) {
 	return a.core.RoundTrip(r)
 }
 
-func (a *ApiClient) Authorize() error {
-	basicAuth := base64.StdEncoding.EncodeToString([]byte(a.clientID + ":" + a.clientSecret))
+func (c *APICLient) Authorize() error {
+	basicAuth := base64.StdEncoding.EncodeToString([]byte(c.clientID + ":" + c.clientSecret))
 
 	data := url.Values{}
 	data.Set("grant_type", "client_credentials")
@@ -58,7 +58,7 @@ func (a *ApiClient) Authorize() error {
 		return err
 	}
 
-	a.accessToken = authResp.AccessToken
+	c.accessToken = authResp.AccessToken
 
 	return nil
 }
